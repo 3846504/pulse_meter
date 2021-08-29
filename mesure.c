@@ -25,7 +25,8 @@
 #define WHITE   0x00FFFFFF
 #define BLACK   0x00000000
 #define BLUE    0x000000FF
-#define GRAY    0xFFA0A0A0
+#define GRAY    0x00A0A0A0
+#define YELLOW  0x00FFFF00
 
 #define PERI_ADD 0x3F000000
 #define GPIO_ADD (PERI_ADD + 0x00200000)
@@ -161,17 +162,20 @@ void drawLine(int x0, int y0, int x1, int y1, int color, int *canvas){
     }
 }
 
-void *graph(void *arg){
-    int hoge = 0;
+void *get_data(void *arg){
+    int miso = MISO;
+    int mosi = MOSI;
+    int clk = CLK;
+    int cs = CS;
 
     int white = WHITE;
     int gray = GRAY;
     int blue = BLUE;
+    int yellow = YELLOW;
 
     int width = WIDTH;
     int height = HEIGHT;
 
-    int canvas[width*height];
     int graph[width*height];
 
     int fb = open(DEV_FB, O_RDWR | O_SYNC);
@@ -183,39 +187,6 @@ void *graph(void *arg){
                         PROT_READ | PROT_WRITE, MAP_SHARED,
                         fb, 0);
 
-    for(int i=0; i<height; i++){
-        for(int j=0; j<width; j++){
-            canvas[i*width+j] = white;
-            if(((i-100)%102 == 0) && (j>92 && (width-92)>j && i<(height-100))) canvas[i*width+j] = gray;
-        }
-    }
-
-    for(;;){
-        if(flag == 1){
-            printf("stop graph\n");
-            break;
-        }
-        memcpy(graph, canvas, sizeof(canvas));
-        for(int i=100; i<height-100; i++){
-            for(int j=92; j<width-92; j++){
-                //graph[j+width*(height-120-datas[(j-92)*buf_num/1000]/8)] = blue;
-                if(j>92) {
-                    drawLine(j, height-120-datas[(j-92)*buf_num/1000]/8, j+1, height-120-datas[(j-91)*buf_num/1000]/8, BLUE, graph);
-                }
-            }
-        }
-        memcpy(fbptr, graph, sizeof(graph));
-    }
-
-    close(fb);
-}
-
-void *get_data(void *arg){
-    int miso = MISO;
-    int mosi = MOSI;
-    int clk = CLK;
-    int cs = CS;
-
     gpio_init();
 
     gpio_configure(miso, GPIO_INPUT);
@@ -223,20 +194,27 @@ void *get_data(void *arg){
     gpio_configure(clk, GPIO_OUTPUT);
     gpio_configure(cs, GPIO_OUTPUT);
 
-    int i = 0;
     int time = 0;
     int count = 0;
+
+    int v0 = 0;
+    int v1 = 0;
+
+    int i = 0;
 
     for(;;){
         if(flag == 1){
             printf("stop mesuring\n");
             break;
         }
-        datas[i%buf_num] = spi_xfer(miso, mosi, clk, cs, 0x600000);
-        usleep(451);
+
+        v1 = v0;
+        v0 = spi_xfer(miso, mosi, clk, cs, 0x600000);
+
+        drawLine(i%width, height-120-v0/8, i%width+1, height-120-v1/8, BLUE, graph);
 
         if(flag == 2){
-            save_data[i%save_num] = datas[i%buf_num];
+            save_data[count] = v0;
             count++;
             if(count == save_num-1){
                 printf("finish mesuring\n");
@@ -245,7 +223,10 @@ void *get_data(void *arg){
             }
         }
         i++;
+        memcpy(fbptr, graph, sizeof(graph));
     }
+
+    close(fb);
 }
 
 void *check_mode(void *arg){
@@ -304,12 +285,10 @@ int main()
 
     pthread_create(&check_thread, NULL, check_mode, NULL);
     pthread_create(&get_data_thread, NULL, get_data, NULL);
-    pthread_create(&graph_thread, NULL, graph, NULL);
     pthread_create(&check_rote_thread, NULL, check_rote, NULL);
 
     pthread_join(check_thread, NULL);
     pthread_join(get_data_thread, NULL);
-    pthread_join(graph_thread, NULL);
     pthread_join(check_rote_thread, NULL);
 
     FILE *file = fopen("/boot/data.csv", "w");
