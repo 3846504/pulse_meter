@@ -141,7 +141,7 @@ int spi_xfer(int miso, int mosi, int clk, int cs, int tx_buf){
 int flag = 0;
 int get_flag = 0;
 
-int buf_num = 3000;
+int buf_num = 50;
 int save_num = 90000;
 int datas[5000];
 int save_data[90000];
@@ -195,6 +195,7 @@ void *get_data(void *arg){
     int time = 0;
     int count = 0;
 
+    int value;
     int v0 = 0;
     int v1 = 0;
 
@@ -206,16 +207,20 @@ void *get_data(void *arg){
             break;
         }
 
-        v1 = v0;
-        v0 = spi_xfer(miso, mosi, clk, cs, 0x600000);
+        value = spi_xfer(miso, mosi, clk, cs, 0x600000);
 
-        for(int n=i%width; n<i%width+10; n++){
-            for(int m=0; m<height; m++){
-                fbptr[m*width+n] = BLACK;
+        if(i%buf_num == 0){
+            v1 = v0;
+            v0 = value;
+
+            for(int n=i/buf_num%width; n<i/buf_num%width+1; n++){
+                for(int m=0; m<height; m++){
+                    fbptr[m*width+n] = BLACK;
+                }
             }
-        }
 
-        drawLine(i%width, height-120-v0/8, i%width+1, height-120-v1/8, 0x00, fbptr);
+            drawLine(i/buf_num%width, height-120-v0/8, i/buf_num%width+1, height-120-v1/8, 0xFF0000, fbptr);
+        }
 
         if(flag == 2){
             save_data[count] = v0;
@@ -262,16 +267,12 @@ void *check_rote(void *arg){
             break;
         }
         if(gpio_read(r_enc_r) == 0 && gpio_read(r_enc_l) == 1){
-            if(buf_num > 1000) buf_num -= 1000;
+            if(buf_num > 10) buf_num -= 10;
             usleep(5000*10);
             printf("left\n");
         }else if(gpio_read(r_enc_l) == 0 && gpio_read(r_enc_r) == 1){
-            if(buf_num < 5000){
-                buf_num += 1000;
-                //FIXME: データリセット部　明日の俺へなんかうまいことやってくれ
-                for(int i=0; i<5000; i++){
-                    datas[i] = 0;
-                }
+            if(buf_num < 200){
+                buf_num += 10;
             }
             usleep(5000*10);
             printf("right\n");
