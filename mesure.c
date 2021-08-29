@@ -139,7 +139,7 @@ int spi_xfer(int miso, int mosi, int clk, int cs, int tx_buf){
 
 int flag = 0;
 int get_flag = 0;
-int start_flag = 0;
+
 int buf_num = 3000;
 int save_num = 90000;
 int datas[5000];
@@ -208,6 +208,7 @@ void *get_data(void *arg){
 
     int i = 0;
     int time = 0;
+    int count = 0;
 
     for(;;){
         if(flag == 1){
@@ -216,16 +217,14 @@ void *get_data(void *arg){
         }
         datas[i%buf_num] = spi_xfer(miso, mosi, clk, cs, 0x600000);
         usleep(451);
-        if(flag == 2 & (i%save_num==0)){
-            start_flag = 1;
-        }
 
-        if(start_flag == 1){
+        if(flag == 2){
             save_data[i%save_num] = datas[i%buf_num];
-            if(i%save_num == save_num-1){
+            count++;
+            if(count == save_num-1){
                 printf("finish mesuring\n");
-                start_flag = 0;
                 flag = 0;
+                count = 0;
             }
         }
         i++;
