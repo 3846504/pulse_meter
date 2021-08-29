@@ -40,8 +40,8 @@
 #define CLK 26
 #define CS 6
 
-#define R_ENC_R 9
-#define R_ENC_L 11
+#define R_ENC_R 20
+#define R_ENC_L 21
 
 static volatile unsigned int *Gpio = NULL;
 
@@ -87,6 +87,21 @@ void gpio_configure(int pin, int mode)
     unsigned int mask = ~(0x7 << ((pin % 10) * 3));
 
     Gpio[index] = (Gpio[index] & mask) | ((mode & 0x7) << ((pin % 10) * 3));
+}
+
+void gpio_configure_pull (int pin, int pullmode)
+{
+    if (pin < 0 || pin > 31) {
+        printf("error: pin number out of range (gpio_configure_pull)\n");
+        exit(-1);
+    }
+    Gpio[37] = pullmode & 0x3;
+    usleep(1);
+    Gpio[38] = 0x1 << pin;
+    usleep(1);
+
+    Gpio[37] = 0;
+    Gpio[38] = 0;
 }
 
 void gpio_set(int pin)
@@ -280,20 +295,42 @@ void *check_rote(void *arg){
     }
 }
 
+void *check_button(void *arg){
+    gpio_init();
+    gpio_configure(16, GPIO_INPUT);
+    gpio_configure_pull(16, 0x2);
+
+    int button_state;
+
+    for(;;){
+        button_state = gpio_read(16);
+        if(flag == 1){
+            printf("end check button\n");
+            break;
+        }
+        if(button_state == 0){
+            printf("button pushed!\n");
+            sleep(1);
+        }
+    }
+}
+
 int main()
 {
     pthread_t check_thread;
     pthread_t get_data_thread;
-    pthread_t graph_thread;
+    pthread_t check_button_thread;
     pthread_t check_rote_thread;
 
     pthread_create(&check_thread, NULL, check_mode, NULL);
     pthread_create(&get_data_thread, NULL, get_data, NULL);
     pthread_create(&check_rote_thread, NULL, check_rote, NULL);
+    pthread_create(&check_button_thread, NULL, check_button, NULL);
 
     pthread_join(check_thread, NULL);
     pthread_join(get_data_thread, NULL);
     pthread_join(check_rote_thread, NULL);
+    pthread_join(check_button_thread, NULL);
 
     FILE *file = fopen("/boot/data.csv", "w");
 
