@@ -211,6 +211,12 @@ void *get_data(void *arg){
         v1 = v0;
         v0 = spi_xfer(miso, mosi, clk, cs, 0x600000);
 
+        for(int n=i%width; n<i%width+1; i++){
+            for(int m=0; m<height; m++){
+                graph[m*width+n] = BLACK;
+            }
+        }
+        
         drawLine(i%width, height-120-v0/8, i%width+1, height-120-v1/8, BLUE, graph);
 
         if(flag == 2){
