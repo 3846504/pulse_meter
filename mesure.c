@@ -147,6 +147,20 @@ int save_data[90000];
 
 static volatile unsigned int *fbptr = NULL;
 
+void drawLine(int x0, int y0, int x1, int y1, int color, int *canvas){
+    if(y0 > y1){
+        for(int i=y0; i>y1; i--){
+            canvas[i*WIDTH+x0] = color;
+        }
+    }else if(y0 < y1){
+        for(int i=y0; i<y1; i++){
+            canvas[i*WIDTH+x0] = color;
+        }
+    }else{
+        canvas[y0*WIDTH+x0] = color;
+    }
+}
+
 void *graph(void *arg){
     int hoge = 0;
 
@@ -184,7 +198,10 @@ void *graph(void *arg){
         memcpy(graph, canvas, sizeof(canvas));
         for(int i=100; i<height-100; i++){
             for(int j=92; j<width-92; j++){
-                graph[j+width*(height-120-datas[(j-92)*buf_num/1000]/8)] = blue;
+                //graph[j+width*(height-120-datas[(j-92)*buf_num/1000]/8)] = blue;
+                if(j>92) {
+                    drawLine(j, height-120-datas[(j-92)*buf_num/1000]/8, j+1, height-120-datas[(j-91)*buf_num/1000]/8, BLUE, graph);
+                }
             }
         }
         memcpy(fbptr, graph, sizeof(graph));
