@@ -148,7 +148,7 @@ int save_data[90000];
 
 static volatile unsigned int *fbptr = NULL;
 
-void drawLine(int x0, int y0, int x1, int y1, int color, int *canvas){
+void drawLine(int x0, int y0, int x1, int y1, int color, volatile unsigned int *canvas){
     if(y0 > y1){
         for(int i=y0; i>y1; i--){
             canvas[i*WIDTH+x0] = color;
@@ -175,8 +175,6 @@ void *get_data(void *arg){
 
     int width = WIDTH;
     int height = HEIGHT;
-
-    int graph[width*height];
 
     int fb = open(DEV_FB, O_RDWR | O_SYNC);
     if(fb < 0) {
@@ -211,13 +209,13 @@ void *get_data(void *arg){
         v1 = v0;
         v0 = spi_xfer(miso, mosi, clk, cs, 0x600000);
 
-        for(int n=i%width; n<i%width+1; i++){
+        for(int n=i%width; n<i%width+10; n++){
             for(int m=0; m<height; m++){
-                graph[m*width+n] = BLACK;
+                fbptr[m*width+n] = BLACK;
             }
         }
-        
-        drawLine(i%width, height-120-v0/8, i%width+1, height-120-v1/8, BLUE, graph);
+
+        drawLine(i%width, height-120-v0/8, i%width+1, height-120-v1/8, 0x00, fbptr);
 
         if(flag == 2){
             save_data[count] = v0;
@@ -229,7 +227,6 @@ void *get_data(void *arg){
             }
         }
         i++;
-        memcpy(fbptr, graph, sizeof(graph));
     }
 
     close(fb);
