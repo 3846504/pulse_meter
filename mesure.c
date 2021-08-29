@@ -3,6 +3,11 @@
     gcc -o mesure mesure.c -lrt -lpthread
     sudo ./mesure
 */
+
+//XXX: OSが裏で何かしに来た際などにずれが生じている OSが悪さをしないようにする必要がある
+//XXX: しっかりと確認したわけではないが数ms単位でずれるため一部波形が欠けてしまう
+//XXX: 解決方法としてはbaremetalでの動作などが考えられるがハードルは高い
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -33,6 +38,9 @@
 #define MOSI 13
 #define CLK 26
 #define CS 6
+
+#define R_ENC_R 9
+#define R_ENC_L 11
 
 static volatile unsigned int *Gpio = NULL;
 
@@ -131,7 +139,7 @@ int spi_xfer(int miso, int mosi, int clk, int cs, int tx_buf){
 
 int flag = 0;
 int get_flag = 0;
-int start_flag = 0;
+
 int buf_num = 3000;
 int save_num = 90000;
 int datas[5000];
@@ -164,7 +172,7 @@ void *graph(void *arg){
     for(int i=0; i<height; i++){
         for(int j=0; j<width; j++){
             canvas[i*width+j] = white;
-            if(((i-100)%102 == 0) && (j>150 && (width-150)>j && i<(height-100))) canvas[i*width+j] = gray;
+            if(((i-100)%102 == 0) && (j>92 && (width-92)>j && i<(height-100))) canvas[i*width+j] = gray;
         }
     }
 
@@ -174,10 +182,9 @@ void *graph(void *arg){
             break;
         }
         memcpy(graph, canvas, sizeof(canvas));
-
         for(int i=100; i<height-100; i++){
-            for(int j=150; j<width-150; j++){
-                graph[j+width*(height-120-datas[(j-150)*(buf_num/1000)]/8)] = blue;
+            for(int j=92; j<width-92; j++){
+                graph[j+width*(height-120-datas[(j-92)*buf_num/1000]/8)] = blue;
             }
         }
         memcpy(fbptr, graph, sizeof(graph));
@@ -201,6 +208,7 @@ void *get_data(void *arg){
 
     int i = 0;
     int time = 0;
+    int count = 0;
 
     for(;;){
         if(flag == 1){
@@ -208,17 +216,15 @@ void *get_data(void *arg){
             break;
         }
         datas[i%buf_num] = spi_xfer(miso, mosi, clk, cs, 0x600000);
-        usleep(1 * 500);
-        if(flag == 2 & (i%save_num==0)){
-            start_flag = 1;
-        }
+        usleep(451);
 
-        if(start_flag == 1){
+        if(flag == 2){
             save_data[i%save_num] = datas[i%buf_num];
-            if(i%save_num == save_num-1){
+            count++;
+            if(count == save_num-1){
                 printf("finish mesuring\n");
-                start_flag = 0;
                 flag = 0;
+                count = 0;
             }
         }
         i++;
@@ -237,12 +243,37 @@ void *check_mode(void *arg){
         }else if(a == 2){
             flag = 2;
             printf("now mesuring\n");
-        }else if(a == 10){
+        }
+    }
+}
+
+void *check_rote(void *arg){
+    int r_enc_r = R_ENC_R;
+    int r_enc_l = R_ENC_L;
+
+    gpio_init();
+    gpio_configure(r_enc_r, GPIO_INPUT);
+    gpio_configure(r_enc_l, GPIO_INPUT);
+    
+    for(;;){
+        if(flag == 1){
+            printf("end check rote\n");
+            break;
+        }
+        if(gpio_read(r_enc_r) == 0 && gpio_read(r_enc_l) == 1){
             if(buf_num > 1000) buf_num -= 1000;
-            a = 0;
-        }else if(a == 20){
-            if(buf_num < 4000) buf_num += 1000;
-            a = 0;
+            usleep(5000*10);
+            printf("left\n");
+        }else if(gpio_read(r_enc_l) == 0 && gpio_read(r_enc_r) == 1){
+            if(buf_num < 5000){
+                buf_num += 1000;
+                //FIXME: データリセット部　明日の俺へなんかうまいことやってくれ
+                for(int i=0; i<5000; i++){
+                    datas[i] = 0;
+                }
+            }
+            usleep(5000*10);
+            printf("right\n");
         }
     }
 }
@@ -252,18 +283,21 @@ int main()
     pthread_t check_thread;
     pthread_t get_data_thread;
     pthread_t graph_thread;
+    pthread_t check_rote_thread;
 
     pthread_create(&check_thread, NULL, check_mode, NULL);
     pthread_create(&get_data_thread, NULL, get_data, NULL);
     pthread_create(&graph_thread, NULL, graph, NULL);
+    pthread_create(&check_rote_thread, NULL, check_rote, NULL);
 
     pthread_join(check_thread, NULL);
     pthread_join(get_data_thread, NULL);
     pthread_join(graph_thread, NULL);
+    pthread_join(check_rote_thread, NULL);
 
-    FILE *file = fopen("/data.csv", "w");
+    FILE *file = fopen("/boot/data.csv", "w");
 
-    for(int i=0; i<90000; i++){
+    for(int i=0; i<save_num; i++){
         fprintf(file, "%d\n", save_data[i]);
     }
 
