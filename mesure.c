@@ -25,7 +25,8 @@
 #define WHITE   0x00FFFFFF
 #define BLACK   0x00000000
 #define BLUE    0x000000FF
-#define GRAY    0xFFA0A0A0
+#define GRAY    0x00A0A0A0
+#define YELLOW  0x00FFFF00
 
 #define PERI_ADD 0x3F000000
 #define GPIO_ADD (PERI_ADD + 0x00200000)
@@ -39,8 +40,8 @@
 #define CLK 26
 #define CS 6
 
-#define R_ENC_R 9
-#define R_ENC_L 11
+#define R_ENC_R 20
+#define R_ENC_L 21
 
 static volatile unsigned int *Gpio = NULL;
 
@@ -86,6 +87,21 @@ void gpio_configure(int pin, int mode)
     unsigned int mask = ~(0x7 << ((pin % 10) * 3));
 
     Gpio[index] = (Gpio[index] & mask) | ((mode & 0x7) << ((pin % 10) * 3));
+}
+
+void gpio_configure_pull (int pin, int pullmode)
+{
+    if (pin < 0 || pin > 31) {
+        printf("error: pin number out of range (gpio_configure_pull)\n");
+        exit(-1);
+    }
+    Gpio[37] = pullmode & 0x3;
+    usleep(1);
+    Gpio[38] = 0x1 << pin;
+    usleep(1);
+
+    Gpio[37] = 0;
+    Gpio[38] = 0;
 }
 
 void gpio_set(int pin)
@@ -140,14 +156,14 @@ int spi_xfer(int miso, int mosi, int clk, int cs, int tx_buf){
 int flag = 0;
 int get_flag = 0;
 
-int buf_num = 3000;
+int buf_num = 50;
 int save_num = 90000;
 int datas[5000];
 int save_data[90000];
 
 static volatile unsigned int *fbptr = NULL;
 
-void drawLine(int x0, int y0, int x1, int y1, int color, int *canvas){
+void drawLine(int x0, int y0, int x1, int y1, int color, volatile unsigned int *canvas){
     if(y0 > y1){
         for(int i=y0; i>y1; i--){
             canvas[i*WIDTH+x0] = color;
@@ -161,18 +177,19 @@ void drawLine(int x0, int y0, int x1, int y1, int color, int *canvas){
     }
 }
 
-void *graph(void *arg){
-    int hoge = 0;
+void *get_data(void *arg){
+    int miso = MISO;
+    int mosi = MOSI;
+    int clk = CLK;
+    int cs = CS;
 
     int white = WHITE;
     int gray = GRAY;
     int blue = BLUE;
+    int yellow = YELLOW;
 
     int width = WIDTH;
     int height = HEIGHT;
-
-    int canvas[width*height];
-    int graph[width*height];
 
     int fb = open(DEV_FB, O_RDWR | O_SYNC);
     if(fb < 0) {
@@ -183,39 +200,6 @@ void *graph(void *arg){
                         PROT_READ | PROT_WRITE, MAP_SHARED,
                         fb, 0);
 
-    for(int i=0; i<height; i++){
-        for(int j=0; j<width; j++){
-            canvas[i*width+j] = white;
-            if(((i-100)%102 == 0) && (j>92 && (width-92)>j && i<(height-100))) canvas[i*width+j] = gray;
-        }
-    }
-
-    for(;;){
-        if(flag == 1){
-            printf("stop graph\n");
-            break;
-        }
-        memcpy(graph, canvas, sizeof(canvas));
-        for(int i=100; i<height-100; i++){
-            for(int j=92; j<width-92; j++){
-                //graph[j+width*(height-120-datas[(j-92)*buf_num/1000]/8)] = blue;
-                if(j>92) {
-                    drawLine(j, height-120-datas[(j-92)*buf_num/1000]/8, j+1, height-120-datas[(j-91)*buf_num/1000]/8, BLUE, graph);
-                }
-            }
-        }
-        memcpy(fbptr, graph, sizeof(graph));
-    }
-
-    close(fb);
-}
-
-void *get_data(void *arg){
-    int miso = MISO;
-    int mosi = MOSI;
-    int clk = CLK;
-    int cs = CS;
-
     gpio_init();
 
     gpio_configure(miso, GPIO_INPUT);
@@ -223,20 +207,38 @@ void *get_data(void *arg){
     gpio_configure(clk, GPIO_OUTPUT);
     gpio_configure(cs, GPIO_OUTPUT);
 
-    int i = 0;
     int time = 0;
     int count = 0;
+
+    int value;
+    int v0 = 0;
+    int v1 = 0;
+
+    int i = 0;
 
     for(;;){
         if(flag == 1){
             printf("stop mesuring\n");
             break;
         }
-        datas[i%buf_num] = spi_xfer(miso, mosi, clk, cs, 0x600000);
-        usleep(451);
+
+        value = spi_xfer(miso, mosi, clk, cs, 0x600000);
+
+        if(i%buf_num == 0){
+            v1 = v0;
+            v0 = value;
+
+            for(int n=i/buf_num%width; n<i/buf_num%width+1; n++){
+                for(int m=0; m<height; m++){
+                    fbptr[m*width+n] = WHITE;
+                }
+            }
+
+            drawLine(i/buf_num%width, height-120-v0/8, i/buf_num%width+1, height-120-v1/8, 0xFF0000, fbptr);
+        }
 
         if(flag == 2){
-            save_data[i%save_num] = datas[i%buf_num];
+            save_data[count] = v0;
             count++;
             if(count == save_num-1){
                 printf("finish mesuring\n");
@@ -246,6 +248,8 @@ void *get_data(void *arg){
         }
         i++;
     }
+
+    close(fb);
 }
 
 void *check_mode(void *arg){
@@ -278,16 +282,12 @@ void *check_rote(void *arg){
             break;
         }
         if(gpio_read(r_enc_r) == 0 && gpio_read(r_enc_l) == 1){
-            if(buf_num > 1000) buf_num -= 1000;
+            if(buf_num > 10) buf_num -= 10;
             usleep(5000*10);
             printf("left\n");
         }else if(gpio_read(r_enc_l) == 0 && gpio_read(r_enc_r) == 1){
-            if(buf_num < 5000){
-                buf_num += 1000;
-                //FIXME: データリセット部　明日の俺へなんかうまいことやってくれ
-                for(int i=0; i<5000; i++){
-                    datas[i] = 0;
-                }
+            if(buf_num < 200){
+                buf_num += 10;
             }
             usleep(5000*10);
             printf("right\n");
@@ -295,28 +295,166 @@ void *check_rote(void *arg){
     }
 }
 
+void *check_button(void *arg){
+    gpio_init();
+    gpio_configure(16, GPIO_INPUT);
+    gpio_configure_pull(16, 0x2);
+
+    int button_state;
+
+    for(;;){
+        button_state = gpio_read(16);
+        if(flag == 1){
+            printf("end check button\n");
+            break;
+        }
+        if(button_state == 0){
+            printf("button pushed!\n");
+            sleep(1);
+        }
+    }
+}
+
+void graph(){
+    int miso = MISO;
+    int mosi = MOSI;
+    int clk = CLK;
+    int cs = CS;
+
+    int white = WHITE;
+    int gray = GRAY;
+    int blue = BLUE;
+    int yellow = YELLOW;
+
+    int width = WIDTH;
+    int height = HEIGHT;
+
+    int fb = open(DEV_FB, O_RDWR | O_SYNC);
+    if(fb < 0) {
+        fprintf(stderr, "framebuffer open error\n");
+    }
+
+    fbptr = (int *)mmap(0, width*height*4, 
+                        PROT_READ | PROT_WRITE, MAP_SHARED,
+                        fb, 0);
+
+    gpio_init();
+
+    gpio_configure(miso, GPIO_INPUT);
+    gpio_configure(mosi, GPIO_OUTPUT);
+    gpio_configure(clk, GPIO_OUTPUT);
+    gpio_configure(cs, GPIO_OUTPUT);
+
+    int time = 0;
+    int count = 0;
+
+    int value;
+    int v0 = 0;
+    int v1 = 0;
+
+    int i = 0;
+
+    for(;;){
+        if(flag == 1){
+            printf("stop mesuring\n");
+            break;
+        }
+
+        value = spi_xfer(miso, mosi, clk, cs, 0x600000);
+
+        if(i%buf_num == 0){
+            v1 = v0;
+            v0 = value;
+
+            for(int n=i/buf_num%width; n<i/buf_num%width+1; n++){
+                for(int m=0; m<height; m++){
+                    fbptr[m*width+n] = BLACK;
+                }
+            }
+
+            drawLine(i/buf_num%width, height-120-v0/8, i/buf_num%width+1, height-120-v1/8, 0xFF0000, fbptr);
+        }
+
+        if(flag == 2){
+            save_data[count] = v0;
+            count++;
+            if(count == save_num-1){
+                printf("finish mesuring\n");
+                flag = 0;
+                count = 0;
+            }
+        }
+        i++;
+    }
+
+    close(fb);
+}
+
 int main()
 {
+    int mem_fd;
+    char *map;
+    int i;
+    int irq1, irq2, irq3;
+
+    volatile unsigned int *irqen1;
+    volatile unsigned int *irqen2;
+    volatile unsigned int *irqen3;
+    volatile unsigned int *irqdi1;
+    volatile unsigned int *irqdi2;
+    volatile unsigned int *irqdi3;
+
+    if ((mem_fd = open("/dev/mem", O_RDWR|O_SYNC)) < 0) return -1;
+    map = (char*) mmap(NULL,
+            4096,
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED,
+            mem_fd,
+            PERI_ADD + 0xb000
+            );
+    
+    if (map == MAP_FAILED)  return -1;
+    irqen1 = (volatile unsigned int *) (map + 0x210);
+    irqen2 = (volatile unsigned int *) (map + 0x214);
+    irqen3 = (volatile unsigned int *) (map + 0x218);
+    irqdi1 = (volatile unsigned int *) (map + 0x21c);
+    irqdi2 = (volatile unsigned int *) (map + 0x220);
+    irqdi3 = (volatile unsigned int *) (map + 0x224);
+
+    irq1 = *irqen1;
+    irq2 = *irqen2;
+    irq3 = *irqen3;
+    // 以下3行で全部の割り込みを禁止する
+    *irqdi1 = 0xffffffff;
+    *irqdi2 = 0xffffffff;
+    *irqdi3 = 0xffffffff;
+
     pthread_t check_thread;
     pthread_t get_data_thread;
-    pthread_t graph_thread;
+    pthread_t check_button_thread;
     pthread_t check_rote_thread;
 
     pthread_create(&check_thread, NULL, check_mode, NULL);
     pthread_create(&get_data_thread, NULL, get_data, NULL);
-    pthread_create(&graph_thread, NULL, graph, NULL);
     pthread_create(&check_rote_thread, NULL, check_rote, NULL);
+    pthread_create(&check_button_thread, NULL, check_button, NULL);
 
     pthread_join(check_thread, NULL);
     pthread_join(get_data_thread, NULL);
-    pthread_join(graph_thread, NULL);
     pthread_join(check_rote_thread, NULL);
+    pthread_join(check_button_thread, NULL);
 
     FILE *file = fopen("/boot/data.csv", "w");
 
     for(int i=0; i<save_num; i++){
         fprintf(file, "%d\n", save_data[i]);
     }
+
+    fclose(file);
+
+    *irqen1 = irq1;
+    *irqen2 = irq2;
+    *irqen3 = irq3;
 
     return 0;
 }
