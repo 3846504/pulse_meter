@@ -310,6 +310,7 @@ void *check_button(void *arg){
         }
         if(button_state == 0){
             printf("button pushed!\n");
+            flag = 1;
             sleep(1);
         }
     }
@@ -392,6 +393,7 @@ void graph(){
 
 int main()
 {
+    /*
     int mem_fd;
     char *map;
     int i;
@@ -428,6 +430,7 @@ int main()
     *irqdi1 = 0xffffffff;
     *irqdi2 = 0xffffffff;
     *irqdi3 = 0xffffffff;
+    */
 
     pthread_t check_thread;
     pthread_t get_data_thread;
@@ -452,9 +455,11 @@ int main()
 
     fclose(file);
 
+    /*
     *irqen1 = irq1;
     *irqen2 = irq2;
     *irqen3 = irq3;
+    */
 
     return 0;
 }
