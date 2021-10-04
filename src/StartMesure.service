@@ -1,10 +1,10 @@
 [Unit]
 Description = hoge
 After=local-fs.target
-ConditionPathExists = /opt/sakulab_ex_unit/bin
+ConditionPathExists = /opt/sakulab_ex_modlue/src
 
 [Service]
-ExecStart=/opt/sakulab_ex_unit/bin/start_program.sh
+ExecStart=/opt/sakulab_ex_module/src/start_program.sh
 Restart=always
 Type=simple
 

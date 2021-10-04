@@ -7,9 +7,9 @@ import atexit
 disp = 0
 flag = 0
 
-command = ['sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_unit/img/main_menu_select_1.png', 
-            'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_unit/img/main_menu_select_2.png',
-            'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_unit/img/main_menu_select_3.png']
+command = ['sudo fbi -T 1 -d /dev/fb0 -noverbose /opt//opt/sakulab_ex_module/img/main_menu_select_1.png', 
+            'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt//opt/sakulab_ex_module/img/main_menu_select_2.png',
+            'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt//opt/sakulab_ex_module/img/main_menu_select_3.png']
     
 os.system(command[0])
 
