@@ -1,0 +1,12 @@
+[Unit]
+Description = hoge
+After=local-fs.target
+ConditionPathExists = /opt/sakulab_ex_unit/bin
+
+[Service]
+ExecStart=/opt/sakulab_ex_unit/bin/start_program.sh
+Restart=always
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
