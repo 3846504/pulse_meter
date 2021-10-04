@@ -17,10 +17,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
 
 #define DEV_FB "/dev/fb0"
-#define WIDTH 1184
-#define HEIGHT 624
+#define WIDTH 480
+#define HEIGHT 320
 
 #define WHITE   0x00FFFFFF
 #define BLACK   0x00000000
@@ -154,16 +155,23 @@ int spi_xfer(int miso, int mosi, int clk, int cs, int tx_buf){
 }
 
 int flag = 0;
-int get_flag = 0;
+int data_num = 2000;
+int datas[2500];
 
-int buf_num = 50;
-int save_num = 90000;
-int datas[5000];
-int save_data[90000];
+time_t timer;
+struct tm *local;
 
 static volatile unsigned int *fbptr = NULL;
 
 void drawLine(int x0, int y0, int x1, int y1, int color, volatile unsigned int *canvas){
+    if(y0 < 0 || y1 < 0){
+        y0 = 0;
+        y1 = 0;
+    }else if(y0 >= 320 || y1 >= 320){
+        y0 = 319;
+        y1 = 319;
+    }
+
     if(y0 > y1){
         for(int i=y0; i>y1; i--){
             canvas[i*WIDTH+x0] = color;
@@ -175,6 +183,10 @@ void drawLine(int x0, int y0, int x1, int y1, int color, volatile unsigned int *
     }else{
         canvas[y0*WIDTH+x0] = color;
     }
+}
+
+void drawPixcel(int x, int y, int color, volatile unsigned int *canvas){
+    canvas[y*WIDTH+x] = color;
 }
 
 void *get_data(void *arg){
@@ -191,7 +203,10 @@ void *get_data(void *arg){
     int width = WIDTH;
     int height = HEIGHT;
 
+    int file_num = 0;
+
     int fb = open(DEV_FB, O_RDWR | O_SYNC);
+    
     if(fb < 0) {
         fprintf(stderr, "framebuffer open error\n");
     }
@@ -207,14 +222,19 @@ void *get_data(void *arg){
     gpio_configure(clk, GPIO_OUTPUT);
     gpio_configure(cs, GPIO_OUTPUT);
 
-    int time = 0;
-    int count = 0;
-
     int value;
-    int v0 = 0;
-    int v1 = 0;
+    int point_num = 2500;
 
-    int i = 0;
+    int canvas[width*height];
+    int graph[width*height];
+    for(int n=0; n<width; n++){
+        for(int m=0; m<height; m++){
+            canvas[m*width+n] = 0xFFFFFF;
+            if(m%80 == 0 || n%96 == 0){
+                canvas[m*width+n] = 0xA0A0A0;
+            }
+        }
+    }
 
     for(;;){
         if(flag == 1){
@@ -222,173 +242,78 @@ void *get_data(void *arg){
             break;
         }
 
-        value = spi_xfer(miso, mosi, clk, cs, 0x600000);
+        memcpy(graph, canvas, sizeof(canvas));
 
-        if(i%buf_num == 0){
-            v1 = v0;
-            v0 = value;
-
-            for(int n=i/buf_num%width; n<i/buf_num%width+1; n++){
-                for(int m=0; m<height; m++){
-                    fbptr[m*width+n] = WHITE;
-                }
-            }
-
-            drawLine(i/buf_num%width, height-120-v0/8, i/buf_num%width+1, height-120-v1/8, 0xFF0000, fbptr);
+        for(int j=0; j<point_num; j++){
+            datas[j] = spi_xfer(miso, mosi, clk, cs, 0x600000);
         }
+
+        int count = 0;
+        int point = 1000;
+        for(int j=0; j<point_num-1; j++){
+            if(datas[j] < 2130 && datas[j+1] >= 2130){
+                count++;
+            }
+            if(count == 2){
+                point = j;
+                break;
+            }
+        }
+
+        for(int j=0; j<width-1; j++){
+            drawLine(j, height-((datas[point-240+j]-1849)*320)/400-30, j+1, height-((datas[point-239+j]-1849)*320)/400-30, 0xFF0000, graph);
+        }
+
+        memcpy(fbptr, graph, sizeof(canvas));
 
         if(flag == 2){
-            save_data[count] = v0;
-            count++;
-            if(count == save_num-1){
-                printf("finish mesuring\n");
-                flag = 0;
-                count = 0;
+            if(file_num > 10){
+                continue;
             }
+            char ext[] = ".csv";
+            char file_path[30] = "/boot/tp";
+
+            sprintf(file_path, "%s%d%s", file_path, file_num, ext);
+
+            FILE *file = fopen(file_path, "w");
+            
+            for(int j=0; j<width-1; j++){
+                fprintf(file, "%d\n", datas[point-240+j]);
+            }
+
+            fclose(file);
+            file_num++;
+            flag = 0;
         }
-        i++;
     }
 
     close(fb);
-}
-
-void *check_mode(void *arg){
-    int a;
-    for(;;){
-        printf("type mode >>");
-        scanf("%d", &a);
-        if(a == 100){
-            flag = 1;
-            printf("end program\n");
-            break;
-        }else if(a == 2){
-            flag = 2;
-            printf("now mesuring\n");
-        }
-    }
-}
-
-void *check_rote(void *arg){
-    int r_enc_r = R_ENC_R;
-    int r_enc_l = R_ENC_L;
-
-    gpio_init();
-    gpio_configure(r_enc_r, GPIO_INPUT);
-    gpio_configure(r_enc_l, GPIO_INPUT);
-    
-    for(;;){
-        if(flag == 1){
-            printf("end check rote\n");
-            break;
-        }
-        if(gpio_read(r_enc_r) == 0 && gpio_read(r_enc_l) == 1){
-            if(buf_num > 10) buf_num -= 10;
-            usleep(5000*10);
-            printf("left\n");
-        }else if(gpio_read(r_enc_l) == 0 && gpio_read(r_enc_r) == 1){
-            if(buf_num < 200){
-                buf_num += 10;
-            }
-            usleep(5000*10);
-            printf("right\n");
-        }
-    }
 }
 
 void *check_button(void *arg){
     gpio_init();
+    gpio_configure(3, GPIO_INPUT);
+    gpio_configure_pull(3, 0x2);
+    gpio_configure(12, GPIO_INPUT);
+    gpio_configure_pull(12, 0x2);
     gpio_configure(16, GPIO_INPUT);
     gpio_configure_pull(16, 0x2);
 
-    int button_state;
-
     for(;;){
-        button_state = gpio_read(16);
         if(flag == 1){
             printf("end check button\n");
             break;
         }
-        if(button_state == 0){
+        if(gpio_read(3) == 0){
             printf("button pushed!\n");
             flag = 1;
             sleep(1);
         }
-    }
-}
-
-void graph(){
-    int miso = MISO;
-    int mosi = MOSI;
-    int clk = CLK;
-    int cs = CS;
-
-    int white = WHITE;
-    int gray = GRAY;
-    int blue = BLUE;
-    int yellow = YELLOW;
-
-    int width = WIDTH;
-    int height = HEIGHT;
-
-    int fb = open(DEV_FB, O_RDWR | O_SYNC);
-    if(fb < 0) {
-        fprintf(stderr, "framebuffer open error\n");
-    }
-
-    fbptr = (int *)mmap(0, width*height*4, 
-                        PROT_READ | PROT_WRITE, MAP_SHARED,
-                        fb, 0);
-
-    gpio_init();
-
-    gpio_configure(miso, GPIO_INPUT);
-    gpio_configure(mosi, GPIO_OUTPUT);
-    gpio_configure(clk, GPIO_OUTPUT);
-    gpio_configure(cs, GPIO_OUTPUT);
-
-    int time = 0;
-    int count = 0;
-
-    int value;
-    int v0 = 0;
-    int v1 = 0;
-
-    int i = 0;
-
-    for(;;){
-        if(flag == 1){
-            printf("stop mesuring\n");
-            break;
+        if(gpio_read(16) == 0){
+            flag = 2;
+            sleep(1);
         }
-
-        value = spi_xfer(miso, mosi, clk, cs, 0x600000);
-
-        if(i%buf_num == 0){
-            v1 = v0;
-            v0 = value;
-
-            for(int n=i/buf_num%width; n<i/buf_num%width+1; n++){
-                for(int m=0; m<height; m++){
-                    fbptr[m*width+n] = BLACK;
-                }
-            }
-
-            drawLine(i/buf_num%width, height-120-v0/8, i/buf_num%width+1, height-120-v1/8, 0xFF0000, fbptr);
-        }
-
-        if(flag == 2){
-            save_data[count] = v0;
-            count++;
-            if(count == save_num-1){
-                printf("finish mesuring\n");
-                flag = 0;
-                count = 0;
-            }
-        }
-        i++;
     }
-
-    close(fb);
 }
 
 int main()
@@ -432,29 +357,15 @@ int main()
     *irqdi3 = 0xffffffff;
     */
 
-    pthread_t check_thread;
     pthread_t get_data_thread;
     pthread_t check_button_thread;
-    pthread_t check_rote_thread;
 
-    pthread_create(&check_thread, NULL, check_mode, NULL);
     pthread_create(&get_data_thread, NULL, get_data, NULL);
-    pthread_create(&check_rote_thread, NULL, check_rote, NULL);
     pthread_create(&check_button_thread, NULL, check_button, NULL);
 
-    pthread_join(check_thread, NULL);
     pthread_join(get_data_thread, NULL);
-    pthread_join(check_rote_thread, NULL);
     pthread_join(check_button_thread, NULL);
-
-    FILE *file = fopen("/boot/data.csv", "w");
-
-    for(int i=0; i<save_num; i++){
-        fprintf(file, "%d\n", save_data[i]);
-    }
-
-    fclose(file);
-
+    
     /*
     *irqen1 = irq1;
     *irqen2 = irq2;

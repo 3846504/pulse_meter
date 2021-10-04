@@ -1,1 +1,0 @@
-exec /user/bin/env c /opt/pulse_meter/bin/pulse_meter
