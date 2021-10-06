@@ -69,6 +69,11 @@ https://downloads.raspberrypi.org/raspios_armhf/images/raspios_armhf-2021-05-28/
     その後serviceファイルを設定することでその後プログラムが電源投入時に自動起動するようになる  
     [詳しくはこちら](https://qiita.com/G-san/items/b0f9a340601cdb4a068f)  
     serviceファイルを配置しなければ自動起動することはない
+    一部ファイルの権限を変更しておく必要がある
+    ```
+    sudo chmod 755 /src/start_program.sh
+    ```
+    を実行しておいてね
 
 6. 必要ライブラリの入手
 
