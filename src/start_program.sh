@@ -6,13 +6,13 @@ do
 
     if [ $mode -eq "0" ]; then
         echo $mode
-        sudo /opt/sakulab_ex_module/pulse_meter
+        sudo /opt/sakulab_ex_module/bin/pulse_meter
     elif [ $mode -eq "1" ]; then
         echo $mode
-        sudo /opt/sakulab_ex_module/chua_mm
+        sudo /opt/sakulab_ex_module/bin/chua_mm
     elif [ $mode -eq "2" ]; then
         echo $mode
-        sudo /opt/sakulab_ex_module/tp_mm
+        sudo /opt/sakulab_ex_module/bin/tp_mm
     elif [ $mode -eq "-1" ]; then
         echo "push shutdown button"
         sudo shutdown -h now

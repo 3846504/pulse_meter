@@ -72,6 +72,9 @@ https://downloads.raspberrypi.org/raspios_armhf/images/raspios_armhf-2021-05-28/
     一部ファイルの権限を変更しておく必要がある
     ```
     sudo chmod 755 /src/start_program.sh
+    sudo chmod 755 /bin/chua_mm
+    sudo chmod 755 /bin/pulse_meter
+    sudo chmod 755 /bin/tp_mm
     ```
     を実行しておいてね
 
