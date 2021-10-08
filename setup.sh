@@ -23,5 +23,5 @@ sudo systemctl enable StartMesure
 sudo apt-get update
 sudo apt-get install fbi
 
-#再起動
-sudo reboot
+#シャットダウン
+sudo shutdown -h now
