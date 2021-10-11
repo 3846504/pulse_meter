@@ -6,7 +6,7 @@ ConditionPathExists = /opt/sakulab_ex_module/src
 [Service]
 ExecStart=/opt/sakulab_ex_module/src/start_program.sh
 Restart=no
-Type=simple
+Type=idle
 
 [Install]
 WantedBy=multi-user.target

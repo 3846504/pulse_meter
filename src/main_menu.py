@@ -42,6 +42,21 @@ def shutdown(gpio_pin):
         sys.stdout.write("-1")
         sys.exit()
 
+def update(gpio_pin):
+    button1 = 1
+    button2 = 1
+    button3 = 1
+    for _ in range(15):
+        time.sleep(0.2)
+        button1 = GPIO.input(3)
+        button2 = GPIO.input(12)
+        button3 = GPIO.input(16)
+        if(button1 == 1 or button2 == 1 or button3 == 1):
+            break
+    if(button1 == 0 and button2 == 0 and button3 == 0):
+        os.system("sudo git -C /opt/sakulab_ex_module pull")
+        os.system("sudo reboot")
+
 if(__name__ == "__main__"):
     select_pin = 12
     shutdown_pin = 3
