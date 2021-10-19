@@ -41,8 +41,12 @@
 #define CLK 26
 #define CS 6
 
-#define R_ENC_R 20
-#define R_ENC_L 21
+#define R_ENC_R 27
+#define R_ENC_L 22
+
+#define SHUTDOWN_PIN 3
+#define SELECT_PIN 4
+#define SAVE_PIN 17
 
 static volatile unsigned int *Gpio = NULL;
 
@@ -288,29 +292,29 @@ void *get_data(void *arg){
 
 void *check_button(void *arg){
     gpio_init();
-    gpio_configure(3, GPIO_INPUT);
-    gpio_configure_pull(3, 0x2);
-    gpio_configure(12, GPIO_INPUT);
-    gpio_configure_pull(12, 0x2);
-    gpio_configure(16, GPIO_INPUT);
-    gpio_configure_pull(16, 0x2);
+    gpio_configure(SHUTDOWN_PIN, GPIO_INPUT);
+    gpio_configure_pull(SHUTDOWN_PIN, 0x2);
+    gpio_configure(SELECT_PIN, GPIO_INPUT);
+    gpio_configure_pull(SELECT_PIN, 0x2);
+    gpio_configure(SAVE_PIN, GPIO_INPUT);
+    gpio_configure_pull(SAVE_PIN, 0x2);
 
     for(;;){
         if(flag == 1){
             printf("end check button\n");
             break;
         }
-        if(gpio_read(3) == 0){
+        if(gpio_read(SHUTDOWN_PIN) == 0){
             printf("button pushed!\n");
             flag = 1;
             sleep(1);
         }
-        if(gpio_read(12) == 0){
+        if(gpio_read(SELECT_PIN) == 0){
             graph_mode = (graph_mode+1)%2;
             printf("%d\n", graph_mode);
             sleep(1);
         }
-        if(gpio_read(16) == 0){
+        if(gpio_read(SAVE_PIN) == 0){
             flag = 2;
             sleep(1);
         }
