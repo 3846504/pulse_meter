@@ -1,7 +1,7 @@
 
 /*
-    gcc -o mesure mesure.c -lrt -lpthread
-    sudo ./mesure
+    gcc -o pulse_meter pulse_meter.c -lrt -lpthread
+    sudo ./pulse_meter
 */
 
 //XXX: OSが裏で何かしに来た際などにずれが生じている OSが悪さをしないようにする必要がある

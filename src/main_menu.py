@@ -15,7 +15,8 @@ ROTE_R_PIN = 22
 
 command = ['sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_module/img/main_menu_select_1.png', 
             'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_module/img/main_menu_select_2.png',
-            'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_module/img/main_menu_select_3.png']
+            'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_module/img/main_menu_select_3.png',
+            'sudo fbi -T 1 -d /dev/fb0 -noverbose /opt/sakulab_ex_module/img/main_menu_select_4.png']
     
 os.system(command[0])
 
@@ -29,7 +30,7 @@ def check_rote(gpio_pin):
     rote_r_pin = ROTE_R_PIN
     rote_l_pin = ROTE_L_PIN
     if(GPIO.input(rote_r_pin) == 0 and GPIO.input(rote_l_pin) == 1):
-        if(disp < 2):
+        if(disp < 3):
             disp += 1
     elif(GPIO.input(rote_r_pin) == 0 and GPIO.input(rote_l_pin) == 0):
         if(disp > 0):
@@ -48,6 +49,8 @@ def shutdown(gpio_pin):
         sys.stdout.write("-1")
         sys.exit()
 
+"""
+実装はまだしてないけどできるといいよね
 def update(gpio_pin):
     button1 = 1
     button2 = 1
@@ -62,6 +65,7 @@ def update(gpio_pin):
     if(button1 == 0 and button2 == 0 and button3 == 0):
         os.system("sudo git -C /opt/sakulab_ex_module pull")
         os.system("sudo reboot")
+"""
 
 if(__name__ == "__main__"):
     select_pin = SELECT_PIN
