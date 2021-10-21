@@ -50,7 +50,6 @@ def shutdown(gpio_pin):
         sys.exit()
 
 """
-実装はまだしてないけどできるといいよね
 def update(gpio_pin):
     button1 = 1
     button2 = 1
