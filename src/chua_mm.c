@@ -1,7 +1,7 @@
 
 /*
-    gcc -o mesure mesure.c -lrt -lpthread
-    sudo ./mesure
+    gcc -o chua_mm chua_mm.c -lrt -lpthread
+    sudo ./chua_mm
 */
 
 //XXX: OSが裏で何かしに来た際などにずれが生じている OSが悪さをしないようにする必要がある

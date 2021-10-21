@@ -13,6 +13,9 @@ do
     elif [ $mode -eq "2" ]; then
         echo $mode
         sudo /opt/sakulab_ex_module/bin/tp_mm
+    elif [ $mode -eq "3" ]; then
+        echo $mode
+        sudo /opt/sakulab_ex_module/bin/amp_mm
     elif [ $mode -eq "-1" ]; then
         echo "push shutdown button"
         sudo shutdown -h now
