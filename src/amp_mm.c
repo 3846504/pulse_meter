@@ -188,10 +188,12 @@ void drawPixcel(int x, int y, int color, volatile unsigned int *canvas){
 
 int level = 1300;
 int flag = 0;
-int data_num = 2000;
-int datas1[2500];
-int datas2[2500];
-int datas3[2500];
+int datas1[3000];
+int datas2[3000];
+int datas3[3000];
+
+int rote_type = 0;
+int buf_num = 2;
 
 void *get_data(void *arg){
     int miso = MISO;
@@ -227,7 +229,7 @@ void *get_data(void *arg){
     gpio_configure(cs, GPIO_OUTPUT);
 
     int value;
-    int point_num = 2500;
+    int point_num = 3000;
 
     int canvas[width*height];
     int graph[width*height];
@@ -248,17 +250,19 @@ void *get_data(void *arg){
 
         memcpy(graph, canvas, sizeof(canvas));
 
-        for(int j=0; j<point_num; j++){
-            datas1[j] = spi_xfer(miso, mosi, clk, cs, 0x600000);
-            datas2[j] = spi_xfer(miso, mosi, clk, cs, 0x640000);
-            datas3[j] = spi_xfer(miso, mosi, clk, cs, 0x680000);
+        int hoge_num = buf_num;
+
+        for(int j=0; j<point_num*hoge_num; j++){
+            datas1[j/hoge_num] = spi_xfer(miso, mosi, clk, cs, 0x600000);
+            datas2[j/hoge_num] = spi_xfer(miso, mosi, clk, cs, 0x640000);
+            datas3[j/hoge_num] = spi_xfer(miso, mosi, clk, cs, 0x680000);
         }
 
         int count = 0;
         int point = 1000;
         for(int j=0; j<point_num-1; j++){
-            if(datas1[j] < level && datas1[j+1] > level){
-                if(j >= 250){
+            if(datas1[j] < level && datas1[j+1] >= level){
+                if(j > 600 && j < 2000){
                     point = j;
                     break;
                 }
@@ -266,10 +270,10 @@ void *get_data(void *arg){
         }
 
         for(int j=0; j<width-1; j++){
-            drawLine(j, height-(datas2[point-240+j]*160)/4096-190, j+1, height-(datas2[point-239+j]*160)/4096-190, 0x00FF00, graph);
-            drawLine(j, height-(datas3[point-240+j]*160)/4096-190, j+1, height-(datas3[point-239+j]*160)/4096-190, 0x0000FF, graph);
-            drawLine(j, height-(level*160/4096)-30, j+1, height-(level*160/4096)-30, 0x00FFFF, graph);
-            drawLine(j, height-(datas1[point-240+j]*160)/4096-30, j+1, height-(datas1[point-239+j]*160)/4096-30, 0xFF0000, graph);
+            drawLine(j, height-(level*160/4096), j+1, height-(level*160/4096), 0x00FFFF, graph);
+            drawLine(j, height-(datas1[point-240+j]*160)/4096, j+1, height-(datas1[point-239+j]*160)/4096, 0xFF0000, graph);
+            drawLine(j, height-(datas2[point-240+j]*160)/4096-160, j+1, height-(datas2[point-239+j]*160)/4096-160, 0x00FF00, graph);
+            drawLine(j, height-(datas3[point-240+j]*160)/4096-160, j+1, height-(datas3[point-239+j]*160)/4096-160, 0x0000FF, graph);
         }
 
         memcpy(fbptr, graph, sizeof(canvas));
@@ -321,6 +325,10 @@ void *check_button(void *arg){
             flag = 2;
             sleep(1);
         }
+        if(gpio_read(SELECT_PIN) == 0){
+            rote_type = (rote_type+1)%2;
+            sleep(1);
+        }
     }
 }
 
@@ -338,12 +346,26 @@ void *check_rote(void *arg){
             break;
         }
         if(gpio_read(r_enc_r) == 0 && gpio_read(r_enc_l) == 1){
-            if(level > 0) level -= 100;
+            if(rote_type == 0){
+                if(level > 0) level -= 100;
+            }else{
+                if(buf_num > 1){
+                    buf_num = buf_num-1;
+                    printf("%d\n", buf_num);
+                }
+            }
             usleep(5000*10);
             printf("left\n");
         }else if(gpio_read(r_enc_l) == 0 && gpio_read(r_enc_r) == 1){
-            if(level < 3000){
-                level += 100;
+            if(rote_type == 0){
+                if(level < 3000){
+                    level += 100;
+                }
+            }else{
+                if(buf_num < 4){
+                    buf_num += 1;
+                    printf("%d\n", buf_num);
+                }
             }
             usleep(5000*10);
             printf("right\n");
