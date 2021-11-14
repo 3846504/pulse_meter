@@ -268,9 +268,6 @@ void *get_data(void *arg){
         memcpy(fbptr, graph, sizeof(canvas));
 
         if(flag == 2){
-            if(file_num > 10){
-                continue;
-            }
             char ext[] = ".csv";
             char file_path[30] = "/boot/chua";
 

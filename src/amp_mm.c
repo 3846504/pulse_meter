@@ -279,9 +279,6 @@ void *get_data(void *arg){
         memcpy(fbptr, graph, sizeof(canvas));
 
         if(flag == 2){
-            if(file_num > 10){
-                continue;
-            }
             char ext[] = ".csv";
             char file_path[30] = "/boot/tp";
 
@@ -345,30 +342,33 @@ void *check_rote(void *arg){
             printf("end check rote\n");
             break;
         }
-        if(gpio_read(r_enc_r) == 0 && gpio_read(r_enc_l) == 1){
-            if(rote_type == 0){
-                if(level > 0) level -= 100;
-            }else{
-                if(buf_num > 1){
-                    buf_num = buf_num-1;
-                    printf("%d\n", buf_num);
+        if(gpio_read(r_enc_l) == 0){
+            if(gpio_read(r_enc_r) == 0){
+                if(rote_type == 0){
+                    if(level > 0) level -= 100;
+                }else{
+                    if(buf_num > 1){
+                        buf_num = buf_num-1;
+                        printf("%d\n", buf_num);
+                    }
                 }
+                usleep(5000*10);
+                printf("hoge\n");
             }
-            usleep(5000*10);
-            printf("left\n");
-        }else if(gpio_read(r_enc_l) == 0 && gpio_read(r_enc_r) == 1){
-            if(rote_type == 0){
-                if(level < 3000){
-                    level += 100;
+            if(gpio_read(r_enc_r) == 1){
+                if(rote_type == 0){
+                    if(level < 3000){
+                        level += 100;
+                    }
+                }else{
+                    if(buf_num < 4){
+                        buf_num += 1;
+                        printf("%d\n", buf_num);
+                    }
                 }
-            }else{
-                if(buf_num < 4){
-                    buf_num += 1;
-                    printf("%d\n", buf_num);
-                }
+                usleep(5000*10);
+                printf("fuga\n");
             }
-            usleep(5000*10);
-            printf("right\n");
         }
     }
 }

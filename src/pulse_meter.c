@@ -284,16 +284,19 @@ void *check_rote(void *arg){
             printf("end check rote\n");
             break;
         }
-        if(gpio_read(r_enc_r) == 0 && gpio_read(r_enc_l) == 1){
-            if(buf_num > 50) buf_num -= 10;
-            usleep(5000*10);
-            printf("left\n");
-        }else if(gpio_read(r_enc_l) == 0 && gpio_read(r_enc_r) == 1){
-            if(buf_num < 300){
-                buf_num += 10;
+        if(gpio_read(r_enc_l) == 0){
+            if(gpio_read(r_enc_r) == 0){
+                if(buf_num > 50) buf_num -= 10;
+                usleep(5000*10);
+                printf("left\n");
             }
-            usleep(5000*10);
-            printf("right\n");
+            if(gpio_read(r_enc_r) == 1){
+                if(buf_num < 300){
+                    buf_num += 10;
+                }
+                usleep(5000*10);
+                printf("right\n");
+            }
         }
     }
 }

@@ -193,6 +193,8 @@ void drawPixcel(int x, int y, int color, volatile unsigned int *canvas){
     canvas[y*WIDTH+x] = color;
 }
 
+int level = 2500;
+
 void *get_data(void *arg){
     int miso = MISO;
     int mosi = MOSI;
@@ -255,25 +257,22 @@ void *get_data(void *arg){
         int count = 0;
         int point = 1000;
         for(int j=0; j<point_num-1; j++){
-            if(datas[j] < 2130 && datas[j+1] >= 2130){
-                count++;
-            }
-            if(count == 2){
-                point = j;
-                break;
+            if(datas[j] < level && datas[j+1] >= level){
+                if(j > 600 && j < 2000){
+                    point = j;
+                    break;
+                }
             }
         }
 
         for(int j=0; j<width-1; j++){
-            drawLine(j, height-((datas[point-240+j]-1849)*320)/400-30, j+1, height-((datas[point-239+j]-1849)*320)/400-30, 0xFF0000, graph);
+            drawLine(j, height-level*320/2048+160, j+1, height-level*320/2048+160, GRAY, graph);
+            drawLine(j, height-((datas[point-240+j])*320)/2048+160, j+1, height-((datas[point-239+j])*320)/2048+160, 0xFF0000, graph);
         }
 
         memcpy(fbptr, graph, sizeof(canvas));
 
         if(flag == 2){
-            if(file_num > 10){
-                continue;
-            }
             char ext[] = ".csv";
             char file_path[30] = "/boot/tp";
 
@@ -316,6 +315,34 @@ void *check_button(void *arg){
         if(gpio_read(SAVE_PIN) == 0){
             flag = 2;
             sleep(1);
+        }
+    }
+}
+
+void *check_rote(void *arg){
+    int r_enc_r = R_ENC_R;
+    int r_enc_l = R_ENC_L;
+
+    gpio_init();
+    gpio_configure(r_enc_r, GPIO_INPUT);
+    gpio_configure(r_enc_l, GPIO_INPUT);
+    
+    for(;;){
+        if(flag == 1){
+            printf("end check rote\n");
+            break;
+        }
+        if(gpio_read(r_enc_l) == 0){
+            if(gpio_read(r_enc_r) == 0){
+                if(level > 0) level -= 10;
+                usleep(5000*10);
+                printf("left\n");
+            }
+            if(gpio_read(r_enc_r) == 1){
+                if(level < 3000) level += 10;
+                usleep(5000*10);
+                printf("right\n");
+            }
         }
     }
 }
@@ -363,11 +390,14 @@ int main()
 
     pthread_t get_data_thread;
     pthread_t check_button_thread;
+    pthread_t check_rote_thread;
 
     pthread_create(&get_data_thread, NULL, get_data, NULL);
+    pthread_create(&check_rote_thread, NULL, check_rote, NULL);
     pthread_create(&check_button_thread, NULL, check_button, NULL);
 
     pthread_join(get_data_thread, NULL);
+    pthread_join(check_rote_thread, NULL);
     pthread_join(check_button_thread, NULL);
     
     /*
