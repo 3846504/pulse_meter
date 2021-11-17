@@ -194,6 +194,8 @@ int datas3[3000];
 
 int rote_type = 0;
 int buf_num = 2;
+int base1 = 0;
+int base2 = 0;
 
 void *get_data(void *arg){
     int miso = MISO;
@@ -236,7 +238,7 @@ void *get_data(void *arg){
     for(int n=0; n<width; n++){
         for(int m=0; m<height; m++){
             canvas[m*width+n] = 0xFFFFFF;
-            if(m%80 == 0 || n%96 == 0){
+            if(m%26 == 0 || n%32 == 0){
                 canvas[m*width+n] = 0xA0A0A0;
             }
         }
@@ -271,8 +273,8 @@ void *get_data(void *arg){
 
         for(int j=0; j<width-1; j++){
             drawLine(j, height-(level*160/4096), j+1, height-(level*160/4096), 0x00FFFF, graph);
-            drawLine(j, height-(datas1[point-240+j]*160)/4096, j+1, height-(datas1[point-239+j]*160)/4096, 0xFF0000, graph);
-            drawLine(j, height-(datas2[point-240+j]*160)/4096-160, j+1, height-(datas2[point-239+j]*160)/4096-160, 0x00FF00, graph);
+            drawLine(j, height-(datas1[point-240+j]*160)/4096-base1, j+1, height-(datas1[point-239+j]*160)/4096-base1, 0xFF0000, graph);
+            drawLine(j, height-(datas2[point-240+j]*160)/4096-160-base2, j+1, height-(datas2[point-239+j]*160)/4096-160-base2, 0x00FF00, graph);
             drawLine(j, height-(datas3[point-240+j]*160)/4096-160, j+1, height-(datas3[point-239+j]*160)/4096-160, 0x0000FF, graph);
         }
 
@@ -319,11 +321,13 @@ void *check_button(void *arg){
             sleep(1);
         }
         if(gpio_read(SAVE_PIN) == 0){
-            flag = 2;
+            if(rote_type == -1) rote_type = -2;
+            else rote_type = -1;
             sleep(1);
         }
         if(gpio_read(SELECT_PIN) == 0){
-            rote_type = (rote_type+1)%2;
+            if(rote_type < 0) rote_type = 0;
+            else rote_type = (rote_type+1)%2;
             sleep(1);
         }
     }
@@ -346,11 +350,15 @@ void *check_rote(void *arg){
             if(gpio_read(r_enc_r) == 0){
                 if(rote_type == 0){
                     if(level > 0) level -= 100;
-                }else{
+                }else if(rote_type == 1){
                     if(buf_num > 1){
                         buf_num = buf_num-1;
                         printf("%d\n", buf_num);
                     }
+                }else if(rote_type == -1){
+                    base1 += 5;
+                }else{
+                    base2 += 5;
                 }
                 usleep(5000*10);
                 printf("hoge\n");
@@ -360,11 +368,15 @@ void *check_rote(void *arg){
                     if(level < 3000){
                         level += 100;
                     }
-                }else{
+                }else if(rote_type == 1){
                     if(buf_num < 4){
                         buf_num += 1;
                         printf("%d\n", buf_num);
                     }
+                }else if(rote_type == -1){
+                    base1 -= 5;
+                }else{
+                    base2 -=5;
                 }
                 usleep(5000*10);
                 printf("fuga\n");
