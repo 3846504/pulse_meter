@@ -1,6 +1,6 @@
 [Unit]
 Description = hoge
-After=systemd-fsck-root.service
+After=remote-fs.target
 ConditionPathExists = /opt/sakulab_ex_module/src
 
 [Service]
