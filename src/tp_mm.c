@@ -160,7 +160,8 @@ int spi_xfer(int miso, int mosi, int clk, int cs, int tx_buf){
 
 int flag = 0;
 int data_num = 2000;
-int datas[2500];
+int datas1[2500];
+int datas2[2500];
 
 time_t timer;
 struct tm *local;
@@ -168,13 +169,10 @@ struct tm *local;
 static volatile unsigned int *fbptr = NULL;
 
 void drawLine(int x0, int y0, int x1, int y1, int color, volatile unsigned int *canvas){
-    if(y0 < 0 || y1 < 0){
-        y0 = 0;
-        y1 = 0;
-    }else if(y0 >= 320 || y1 >= 320){
-        y0 = 319;
-        y1 = 319;
-    }
+    if(y0 < 0) y0 = 0;
+    if(y1 < 0) y1 = 0;
+    if(y0 >= 320) y0 = 319;
+    if(y1 >= 320) y1 = 319;
 
     if(y0 > y1){
         for(int i=y0; i>y1; i--){
@@ -251,13 +249,14 @@ void *get_data(void *arg){
         memcpy(graph, canvas, sizeof(canvas));
 
         for(int j=0; j<point_num; j++){
-            datas[j] = spi_xfer(miso, mosi, clk, cs, 0x600000);
+            datas1[j] = spi_xfer(miso, mosi, clk, cs, 0x600000);
+            datas2[j] = spi_xfer(miso, mosi, clk, cs, 0x640000);
         }
 
         int count = 0;
         int point = 1000;
         for(int j=0; j<point_num-1; j++){
-            if(datas[j] < level && datas[j+1] >= level){
+            if(datas1[j] < level && datas1[j+1] >= level){
                 if(j > 600 && j < 2000){
                     point = j;
                     break;
@@ -266,8 +265,9 @@ void *get_data(void *arg){
         }
 
         for(int j=0; j<width-1; j++){
-            drawLine(j, height-level*320/2048+160, j+1, height-level*320/2048+160, GRAY, graph);
-            drawLine(j, height-((datas[point-240+j])*320)/2048+160, j+1, height-((datas[point-239+j])*320)/2048+160, 0xFF0000, graph);
+            drawLine(j, height-(level)*320/2048+160, j+1, height-(level)*320/2048+160, GRAY, graph);
+            drawLine(j, height-((datas1[point-240+j])*320)/2048+160, j+1, height-((datas1[point-239+j])*320)/2048+160, 0xFF0000, graph);
+            drawLine(j, height-(datas2[point-240+j]*160)/4096-80, j+1, height-(datas2[point-239+j]*160)/4096-80, 0x00FF00, graph);
         }
 
         memcpy(fbptr, graph, sizeof(canvas));
@@ -281,12 +281,24 @@ void *get_data(void *arg){
             FILE *file = fopen(file_path, "w");
             
             for(int j=0; j<width-1; j++){
-                fprintf(file, "%d\n", datas[point-240+j]);
+                fprintf(file, "%d, %d\n", datas1[point-240+j], datas2[point-240+j]);
             }
 
             fclose(file);
             file_num++;
             flag = 0;
+
+            for(int i=0; i<width; i++){
+                if(i < 10 || i > width-10){
+                    drawLine(i, 0, i+1, height, 0xA0A0A0, graph);
+                }else{
+                    drawLine(i, 0, i+1, 10, 0xA0A0A0, graph);
+                    drawLine(i, height-10, i+1, height, 0xA0A0A0, graph);
+                }
+            }
+
+            memcpy(fbptr, graph, sizeof(canvas));
+            sleep(1);
         }
     }
 
