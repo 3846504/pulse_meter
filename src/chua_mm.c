@@ -280,6 +280,20 @@ void *get_data(void *arg){
             }
 
             fclose(file);
+            file_num++;
+
+            for(int i=0; i<width; i++){
+                if(i < 10 || i > width-10){
+                    drawLine(i, 0, i+1, height, 0xA0A0A0, graph);
+                }else{
+                    drawLine(i, 0, i+1, 10, 0xA0A0A0, graph);
+                    drawLine(i, height-10, i+1, height, 0xA0A0A0, graph);
+                }
+            }
+
+            memcpy(fbptr, graph, sizeof(canvas));
+            sleep(1);
+            
             flag = 0;
         }
     }
