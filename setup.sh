@@ -22,7 +22,7 @@ sudo systemctl enable StartMesure
 
 #必要コマンドの入手
 sudo apt-get update
-sudo apt-get install fbi
+sudo apt-get install fbi --fix-missing
 
 #シャットダウン
 sudo shutdown -h now
